@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.env
+cache/
+logs/
+media/
+config/settings.json
+config/libraries.json
+web/node_modules/
+web/dist/

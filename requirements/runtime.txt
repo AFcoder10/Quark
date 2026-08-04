@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+httpx
+aiofiles
+pydantic>=2
+loguru
+watchdog
+python-multipart
+orjson
+mediainfo
+ffmpeg-python
+python-dotenv
