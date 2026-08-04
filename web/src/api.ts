@@ -81,6 +81,7 @@ export const api = {
 
   settings: () => request<Settings>("/system/settings"),
   saveSettings: (body: Partial<Settings>) => request<Settings>("/system/settings", { method: "PUT", body: JSON.stringify(body) }),
+  restartServer: () => request<{ status: string }>("/system/restart", { method: "POST" }),
 
   shows: () => request<Show[]>("/shows"),
   show: (title: string) => request<Show>(`/shows/${encodeURIComponent(title)}`),

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
@@ -67,3 +69,16 @@ def update_settings(body: dict) -> dict:
             current[key] = merged
     settings.update(current)
     return {"status": "ok", **settings.data.model_dump(mode="json")}
+
+
+@router.post("/restart")
+async def restart_server() -> dict:
+    """Signal the main.py supervisor to close & reopen the backend terminal."""
+    from app.config.settings import BASE_DIR
+
+    marker = BASE_DIR / ".restart_request"
+    try:
+        marker.write_text(datetime.now(timezone.utc).isoformat(), encoding="utf-8")
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc)}
+    return {"status": "restarting", "time": datetime.now(timezone.utc).isoformat()}

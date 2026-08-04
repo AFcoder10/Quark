@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { useApp } from "../context";
 import type { Library, Settings } from "../types";
-import { FilmIcon, FolderIcon, PlusIcon, RefreshIcon, SparkIcon, TrashIcon, TvIcon } from "../icons";
+import { FilmIcon, FolderIcon, PlusIcon, RefreshIcon, RestartIcon, SparkIcon, TrashIcon, TvIcon } from "../icons";
 
 type Section = "server" | "libraries" | "streaming" | "optimization" | "providers";
 
@@ -14,6 +14,8 @@ export default function SettingsPage() {
   const [showAddLib, setShowAddLib] = useState(false);
   const [newLib, setNewLib] = useState({ name: "", path: "", type: "movie" });
   const [scanning, setScanning] = useState<string | null>(null);
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const [restarting, setRestarting] = useState(false);
 
   const loadSettings = async () => {
     try {
@@ -37,6 +39,33 @@ export default function SettingsPage() {
       notify(String(error), "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const restartServer = async () => {
+    setRestarting(true);
+    try {
+      await api.restartServer();
+      notify("Server is restarting...", "info");
+      setShowRestartConfirm(false);
+      // The server disconnects during restart; refresh when it comes back up.
+      let attempts = 0;
+      const checkHealth = async () => {
+        attempts += 1;
+        if (attempts > 30) return;
+        try {
+          await api.health();
+          await refreshAll();
+          notify("Server restarted", "success");
+        } catch {
+          window.setTimeout(checkHealth, 1000);
+        }
+      };
+      window.setTimeout(checkHealth, 3000);
+    } catch (error) {
+      notify(String(error), "error");
+    } finally {
+      setRestarting(false);
     }
   };
 
@@ -183,6 +212,11 @@ export default function SettingsPage() {
               <p className="panel-desc">
                 Changing host/port requires a server restart.
               </p>
+              <div className="flex gap-md mt-20">
+                <button className="btn btn-primary" onClick={() => setShowRestartConfirm(true)}>
+                  <RestartIcon /> Restart Server
+                </button>
+              </div>
             </>
           )}
 
@@ -442,6 +476,25 @@ export default function SettingsPage() {
               <button className="btn btn-ghost" onClick={() => setShowAddLib(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={addLibrary}>
                 <FolderIcon /> Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRestartConfirm && (
+        <div className="modal-backdrop" onClick={() => setShowRestartConfirm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Restart Server?</h3>
+            <p className="modal-warning">
+              Restarting the server will interrupt any active streams, transcodes, and
+              optimizations. The server will come back online automatically within a few
+              seconds. Continue?
+            </p>
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setShowRestartConfirm(false)}>Cancel</button>
+              <button className="btn btn-primary btn-danger" onClick={restartServer} disabled={restarting}>
+                <RestartIcon /> {restarting ? "Restarting..." : "Restart Now"}
               </button>
             </div>
           </div>

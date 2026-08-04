@@ -117,7 +117,10 @@ export function Player({ item, onClose }: PlayerProps) {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [hlsLevels, setHlsLevels] = useState<HlsLevel[]>([]);
   const isDirectPlayable = meta?.playback?.direct_play_supported ?? (item.metadata?.playback?.direct_play_supported ?? false);
-  const [currentQuality, setCurrentQuality] = useState<string>(() => isDirectPlayable ? "direct" : "hls-original");
+  const [currentQuality, setCurrentQuality] = useState<string>(() => {
+    if (item.optimized) return "hls-original";
+    return isDirectPlayable ? "direct" : "hls-original";
+  });
   const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
   const [activeSubtitle, setActiveSubtitle] = useState<number | null>(null);
   const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>([]);
@@ -196,7 +199,9 @@ export function Player({ item, onClose }: PlayerProps) {
           setSubtitleTracks(d.metadata.subtitles ?? []);
           const def = d.metadata.subtitles?.find((s) => s.default);
           if (def) setActiveSubtitle(def.index ?? null);
-          if (d.metadata.playback?.direct_play_supported === false) {
+          if (!item.optimized && d.metadata.playback?.direct_play_supported) {
+            setCurrentQuality((prev) => (prev === "hls-original" ? "direct" : prev));
+          } else if (d.metadata.playback?.direct_play_supported === false) {
             setCurrentQuality((prev) => (prev === "direct" ? "hls-original" : prev));
           }
         }
@@ -209,6 +214,11 @@ export function Player({ item, onClose }: PlayerProps) {
     api.state(item.media_id).then((st) => {
       if (st.position > 2 && st.duration > 0 && st.position < st.duration - 10) {
         savedPosition.current = st.position;
+        const video = videoRef.current;
+        if (video && video.readyState >= 1) {
+          video.currentTime = st.position;
+          savedPosition.current = 0;
+        }
       }
     });
   }, [item.media_id]);
@@ -223,32 +233,31 @@ export function Player({ item, onClose }: PlayerProps) {
 
     let srcUrl = "";
     let isHls = false;
-    let targetHlsLevel = -1;
+    let targetHlsHeight = -1;
 
     if (currentQuality === "direct") {
       srcUrl = streamUrl(item.media_id, "direct");
-      isHls = !meta?.playback?.direct_play_supported || item.optimized;
+      isHls = false;
     } else if (currentQuality === "hls-original") {
-      const startPos = savedPosition.current > 0 ? `&start=${savedPosition.current}` : "";
-      srcUrl = `${streamUrl(item.media_id, "transcode")}&height=${sourceHeight}&original=true${startPos}`;
-      isHls = true;
-      targetHlsLevel = -1;
+      if (item.optimized) {
+        srcUrl = streamUrl(item.media_id, "hls");
+        isHls = true;
+        targetHlsHeight = sourceHeight;
+      } else {
+        const startPos = savedPosition.current > 0 ? `&start=${savedPosition.current}` : "";
+        srcUrl = `${streamUrl(item.media_id, "transcode")}&height=${sourceHeight}&original=true${startPos}`;
+        isHls = true;
+        targetHlsHeight = -1;
+      }
     } else if (currentQuality === "auto") {
       srcUrl = streamUrl(item.media_id, "auto");
       isHls = !meta?.playback?.direct_play_supported || item.optimized;
     } else if (currentQuality.startsWith("res-")) {
       const targetHeight = Number(currentQuality.replace("res-", ""));
-      if (item.optimized && hlsLevels.length > 0) {
-        const matchIdx = hlsLevels.findIndex((l) => l.height === targetHeight);
-        if (matchIdx !== -1) {
-          srcUrl = streamUrl(item.media_id, "hls");
-          isHls = true;
-          targetHlsLevel = matchIdx;
-        } else {
-          const startPos = savedPosition.current > 0 ? `&start=${savedPosition.current}` : "";
-          srcUrl = `${streamUrl(item.media_id, "transcode")}&height=${targetHeight}${startPos}`;
-          isHls = true;
-        }
+      if (item.optimized) {
+        srcUrl = streamUrl(item.media_id, "hls");
+        isHls = true;
+        targetHlsHeight = targetHeight;
       } else {
         const startPos = savedPosition.current > 0 ? `&start=${savedPosition.current}` : "";
         srcUrl = `${streamUrl(item.media_id, "transcode")}&height=${targetHeight}${startPos}`;
@@ -264,9 +273,6 @@ export function Player({ item, onClose }: PlayerProps) {
         hls.loadSource(src);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (targetHlsLevel >= 0) {
-            hls.currentLevel = targetHlsLevel;
-          }
           const levels = hls.levels.map((l, index) => ({
             index,
             height: l.height,
@@ -274,6 +280,12 @@ export function Player({ item, onClose }: PlayerProps) {
             bitrate: l.bitrate,
           }));
           if (levels.length > 0) setHlsLevels(levels);
+          if (targetHlsHeight > 0) {
+            const matchIdx = hls.levels.findIndex((l) => l.height === targetHlsHeight);
+            if (matchIdx !== -1) {
+              hls.currentLevel = matchIdx;
+            }
+          }
           video.play().catch(() => {});
         });
         hls.on(Hls.Events.ERROR, (_evt, data) => {
@@ -360,10 +372,6 @@ export function Player({ item, onClose }: PlayerProps) {
     }
     setCurrentQuality(qualKey);
     setMenuOpen(null);
-    if (qualKey.startsWith("hls-") && hlsRef.current) {
-      const idx = Number(qualKey.replace("hls-", ""));
-      hlsRef.current.currentLevel = idx;
-    }
   };
 
   const selectSubtitle = (trackIndex: number | null) => {

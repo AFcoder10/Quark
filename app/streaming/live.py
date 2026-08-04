@@ -88,7 +88,7 @@ class LiveTranscodeManager:
         if out_dir.exists():
             shutil.rmtree(out_dir, ignore_errors=True)
         out_dir.mkdir(parents=True, exist_ok=True)
-        segment_seconds = settings.data.optimization.segment_seconds
+        segment_seconds = 3
         source_height = meta.video.height if meta.video and meta.video.height else 1080
         copy_video = height >= source_height and bool(meta.video and (meta.video.codec or "").lower() in ("h264", "avc", "h.264"))
 
@@ -99,6 +99,9 @@ class LiveTranscodeManager:
             "error",
             "-y",
         ]
+        from app.transcoding.gpu import get_hwaccel_args
+
+        cmd.extend(get_hwaccel_args())
         if start_time > 0:
             cmd.extend(["-ss", str(start_time)])
         cmd.extend([
@@ -109,6 +112,9 @@ class LiveTranscodeManager:
             "-map",
             "0:a:0?",
         ])
+        from app.transcoding.gpu import get_best_h264_encoder
+
+        encoder = get_best_h264_encoder()
         if copy_video:
             cmd.extend(["-c:v", "copy"])
         else:
@@ -118,11 +124,18 @@ class LiveTranscodeManager:
                 "-pix_fmt",
                 "yuv420p",
                 "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "23",
+                encoder,
+            ])
+            if encoder == "h264_nvenc":
+                cmd.extend(["-preset", "p1"])
+            elif encoder == "h264_qsv":
+                cmd.extend(["-preset", "veryfast"])
+            elif encoder == "h264_amf":
+                cmd.extend(["-usage", "lowlatency"])
+            else:
+                cmd.extend(["-preset", "ultrafast", "-tune", "zerolatency", "-crf", "22", "-threads", "0"])
+
+            cmd.extend([
                 "-sc_threshold",
                 "0",
                 "-force_key_frames",
@@ -158,6 +171,8 @@ class LiveTranscodeManager:
         for _ in range(240):
             if m3u8_file.is_file() and m3u8_file.stat().st_size > 0:
                 break
+            if runner.process is not None and runner.process.poll() is not None:
+                raise RuntimeError(f"FFmpeg live transcode exited early: {runner.process.returncode}")
             await asyncio.sleep(0.05)
 
     async def stop_job(self, media_id: str) -> None:
