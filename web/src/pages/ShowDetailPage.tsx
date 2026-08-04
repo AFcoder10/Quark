@@ -44,17 +44,39 @@ export default function ShowDetailPage() {
     [show, seasonNum],
   );
 
-  const handleOptimize = async (ep: ShowEpisode) => {
+  const handleOptimize = async (ep: ShowEpisode, mode: "hls" | "hevc" = "hls") => {
     if (!ep.media_id) return;
     setOptimizing(ep.media_id);
     try {
-      await api.optimize(ep.media_id);
-      notify(`Optimization queued: ${ep.title ?? ep.local_title ?? ""}`, "info");
+      await api.optimize(ep.media_id, mode);
+      notify(`Queued (${mode.toUpperCase()}): ${ep.title ?? ep.local_title ?? ""}`, "info");
       refreshItems();
     } catch (error) {
       notify(String(error), "error");
     } finally {
       setOptimizing(null);
+    }
+  };
+
+  const handleOptimizeShow = async (mode: "hls" | "hevc") => {
+    if (!show?.series_title) return;
+    try {
+      const res = await api.optimizeShow(show.series_title, mode);
+      notify(`Queued ${res.count} episodes for ${mode.toUpperCase()} optimization`, "info");
+      refreshItems();
+    } catch (error) {
+      notify(String(error), "error");
+    }
+  };
+
+  const handleOptimizeSeason = async (mode: "hls" | "hevc") => {
+    if (!show?.series_title || seasonNum == null) return;
+    try {
+      const res = await api.optimizeSeason(show.series_title, seasonNum, mode);
+      notify(`Queued ${res.count} Season ${seasonNum} episodes for ${mode.toUpperCase()} optimization`, "info");
+      refreshItems();
+    } catch (error) {
+      notify(String(error), "error");
     }
   };
 
@@ -154,6 +176,36 @@ export default function ShowDetailPage() {
               <PlayIcon /> Play
             </button>
           )}
+
+          <div className="dropdown" style={{ display: "inline-block", position: "relative" }}>
+            <button className="btn btn-ghost" style={{ border: "1px solid rgba(255,255,255,0.15)" }}>
+              ⚡ Optimize Show
+            </button>
+            <div className="dropdown-menu">
+              <button className="btn btn-ghost" onClick={() => handleOptimizeShow("hls")}>
+                Multi-Res HLS (Streaming)
+              </button>
+              <button className="btn btn-ghost" onClick={() => handleOptimizeShow("hevc")}>
+                Compress to HEVC (H.265)
+              </button>
+            </div>
+          </div>
+
+          {activeSeason && (
+            <div className="dropdown" style={{ display: "inline-block", position: "relative" }}>
+              <button className="btn btn-ghost" style={{ border: "1px solid rgba(255,255,255,0.15)" }}>
+                ⚡ Optimize Season {seasonNum}
+              </button>
+              <div className="dropdown-menu">
+                <button className="btn btn-ghost" onClick={() => handleOptimizeSeason("hls")}>
+                  Multi-Res HLS (Season {seasonNum})
+                </button>
+                <button className="btn btn-ghost" onClick={() => handleOptimizeSeason("hevc")}>
+                  Compress to HEVC (Season {seasonNum})
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {show.seasons.length > 1 && (
@@ -215,11 +267,19 @@ export default function ShowDetailPage() {
                   <div className="episode-actions" onClick={(e) => e.stopPropagation()}>
                     <button
                       className="icon-btn"
-                      title="Optimize to HLS"
+                      title="Optimize (HLS)"
                       disabled={ep.media_id === optimizing || ep.optimized}
-                      onClick={() => handleOptimize(ep)}
+                      onClick={() => handleOptimize(ep, "hls")}
                     >
                       <QueueIcon />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      title="Compress (HEVC H.265)"
+                      disabled={ep.media_id === optimizing}
+                      onClick={() => handleOptimize(ep, "hevc")}
+                    >
+                      ⚡
                     </button>
                   </div>
                 )}

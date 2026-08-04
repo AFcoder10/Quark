@@ -58,7 +58,12 @@ export const api = {
   downloadSubtitles: (id: string) =>
     request<{ status: string }>(`/items/${id}/subtitles/download`, { method: "POST" }),
 
-  optimize: (id: string) => request<{ status: string; media_id: string }>(`/items/${id}/optimize`, { method: "POST" }),
+  optimize: (id: string, mode: "hls" | "hevc" = "hls") =>
+    request<{ status: string; media_id: string }>(`/items/${id}/optimize?mode=${mode}`, { method: "POST" }),
+  optimizeShow: (showId: string, mode: "hls" | "hevc" = "hls") =>
+    request<{ status: string; count: number; total_episodes: number }>(`/shows/${showId}/optimize?mode=${mode}`, { method: "POST" }),
+  optimizeSeason: (showId: string, seasonNum: number, mode: "hls" | "hevc" = "hls") =>
+    request<{ status: string; count: number; total_episodes: number }>(`/shows/${showId}/seasons/${seasonNum}/optimize?mode=${mode}`, { method: "POST" }),
   cancelOptimize: (id: string) => request<{ status: string }>(`/items/${id}/optimize`, { method: "DELETE" }),
   optimizeStatus: (id: string) => request<OptimizationStatus>(`/items/${id}/optimize/status`),
   optimizeQueue: () => request<{ jobs: OptimizationStatus[] }>("/optimize/queue"),

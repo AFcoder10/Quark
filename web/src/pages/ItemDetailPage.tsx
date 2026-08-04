@@ -35,12 +35,12 @@ export default function ItemDetailPage() {
 
   const meta = item?.metadata;
 
-  const handleOptimize = async () => {
+  const handleOptimize = async (mode: "hls" | "hevc" = "hls") => {
     if (!item || optimizing) return;
     setOptimizing(true);
     try {
-      await api.optimize(item.media_id);
-      notify("Optimization queued", "info");
+      await api.optimize(item.media_id, mode);
+      notify(`Queued for ${mode.toUpperCase()} optimization`, "info");
     } catch (error) {
       notify(String(error), "error");
     } finally {
@@ -157,8 +157,11 @@ export default function ItemDetailPage() {
               <button className="btn btn-ghost" onClick={handleToggleWatched}>
                 <CheckIcon /> {watched ? "Watched" : "Mark watched"}
               </button>
-              <button className="btn btn-ghost" onClick={handleOptimize}>
-                <SparkIcon /> {optimizing ? "Queued..." : "Optimize"}
+              <button className="btn btn-ghost" onClick={() => handleOptimize("hls")}>
+                <SparkIcon /> {optimizing ? "Queued..." : "Optimize (HLS)"}
+              </button>
+              <button className="btn btn-ghost" onClick={() => handleOptimize("hevc")}>
+                ⚡ {optimizing ? "Queued..." : "Compress (HEVC H.265)"}
               </button>
               <button className="btn btn-ghost" onClick={handleRefresh}>
                 <RefreshIcon /> Refresh
