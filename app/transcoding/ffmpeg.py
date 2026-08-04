@@ -61,12 +61,11 @@ class FFmpegRunner:
     async def stop(self) -> None:
         if self.process is None or self.process.returncode is not None:
             return
-        self.process.terminate()
         try:
-            await asyncio.wait_for(self.process.wait(), timeout=5)
-        except asyncio.TimeoutError:
             self.process.kill()
-            await self.process.wait()
+            await asyncio.wait_for(self.process.wait(), timeout=1.0)
+        except Exception:
+            pass
         if self._stderr_task is not None:
             self._stderr_task.cancel()
         logger.debug("Stopped %s process", self.log_tag)

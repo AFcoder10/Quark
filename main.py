@@ -12,6 +12,23 @@ BASE_DIR = Path(__file__).parent.resolve()
 WEB_DIR = BASE_DIR / "web"
 
 
+def free_port(port: int = 8090):
+    if sys.platform == "win32":
+        try:
+            cmd = f'for /f "tokens=5" %a in (\'netstat -aon ^| findstr :{port} ^| findstr LISTENING\') do taskkill /F /PID %a'
+            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+
+def kill_process_tree(pid: int):
+    if sys.platform == "win32":
+        try:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+
 def run_backend():
     import asyncio
     from app.config.settings import settings
@@ -34,6 +51,7 @@ def run_backend():
 
 def run_dev():
     print("🚀 Starting Quark Server (Hot-Reload Backend + Frontend Dev HMR)...")
+    free_port(8090)
 
     # 1. Start Backend process
     backend_cmd = [sys.executable, "-c", "import main; main.run_backend()"]
@@ -53,10 +71,7 @@ def run_dev():
     finally:
         for proc in (backend_proc, frontend_proc):
             if proc and proc.poll() is None:
-                try:
-                    proc.terminate()
-                except Exception:
-                    pass
+                kill_process_tree(proc.pid)
 
 
 def run_prod():
