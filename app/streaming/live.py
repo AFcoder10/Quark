@@ -153,6 +153,13 @@ class LiveTranscodeManager:
         job.mark_started()
         self._jobs[media_id] = job
 
+        # Wait until initial HLS manifest file is written to disk
+        m3u8_file = out_dir / "index.m3u8"
+        for _ in range(240):
+            if m3u8_file.is_file() and m3u8_file.stat().st_size > 0:
+                break
+            await asyncio.sleep(0.05)
+
     async def stop_job(self, media_id: str) -> None:
         job = self._jobs.pop(media_id, None)
         if job is not None and job.running:

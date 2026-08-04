@@ -28,7 +28,7 @@ def run_backend():
         reload=True,
         reload_dirs=["app"],
         log_level=settings.data.server.log_level.lower(),
-        loop="asyncio",
+        loop="none",
     )
 
 

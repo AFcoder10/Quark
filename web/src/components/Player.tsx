@@ -116,8 +116,8 @@ export function Player({ item, onClose }: PlayerProps) {
   const [error, setError] = useState<string | null>(null);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [hlsLevels, setHlsLevels] = useState<HlsLevel[]>([]);
-  const isDirectPlayable = meta?.playback?.direct_play_supported ?? (item.metadata?.playback?.direct_play_supported ?? true);
-  const [currentQuality, setCurrentQuality] = useState<string>(() => isDirectPlayable ? "direct" : "auto");
+  const isDirectPlayable = meta?.playback?.direct_play_supported ?? (item.metadata?.playback?.direct_play_supported ?? false);
+  const [currentQuality, setCurrentQuality] = useState<string>(() => isDirectPlayable ? "direct" : "hls-original");
   const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
   const [activeSubtitle, setActiveSubtitle] = useState<number | null>(null);
   const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>([]);
@@ -197,7 +197,7 @@ export function Player({ item, onClose }: PlayerProps) {
           const def = d.metadata.subtitles?.find((s) => s.default);
           if (def) setActiveSubtitle(def.index ?? null);
           if (d.metadata.playback?.direct_play_supported === false) {
-            setCurrentQuality((prev) => (prev === "direct" ? "auto" : prev));
+            setCurrentQuality((prev) => (prev === "direct" ? "hls-original" : prev));
           }
         }
       })

@@ -108,7 +108,7 @@ class PlaybackManager:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
         response = self.live.serve(media_id, asset)
         if response is None:
-            for _ in range(60):
+            for _ in range(120):
                 await asyncio.sleep(0.1)
                 response = self.live.serve(media_id, asset)
                 if response is not None:

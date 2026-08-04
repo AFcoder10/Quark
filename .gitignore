@@ -11,3 +11,4 @@ config/settings.json
 config/libraries.json
 web/node_modules/
 web/dist/
+quark.egg info
