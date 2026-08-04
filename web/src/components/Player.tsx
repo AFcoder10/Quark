@@ -90,8 +90,8 @@ function parseVTT(vttText: string): SubtitleCue[] {
   return cues;
 }
 
-function getQualityLabel(height: number): string {
-  if (height >= 2160) return "4K";
+function getQualityLabel(height: number, width?: number): string {
+  if (height >= 1600 || (width && width >= 3500)) return "4K";
   if (height >= 1440) return "1440p";
   if (height >= 1080) return "1080p";
   if (height >= 720) return "720p";
@@ -228,6 +228,11 @@ export function Player({ item, onClose }: PlayerProps) {
     if (currentQuality === "direct") {
       srcUrl = streamUrl(item.media_id, "direct");
       isHls = !meta?.playback?.direct_play_supported || item.optimized;
+    } else if (currentQuality === "hls-original") {
+      const startPos = savedPosition.current > 0 ? `&start=${savedPosition.current}` : "";
+      srcUrl = `${streamUrl(item.media_id, "transcode")}&height=${sourceHeight}&original=true${startPos}`;
+      isHls = true;
+      targetHlsLevel = -1;
     } else if (currentQuality === "auto") {
       srcUrl = streamUrl(item.media_id, "auto");
       isHls = !meta?.playback?.direct_play_supported || item.optimized;
@@ -552,6 +557,7 @@ export function Player({ item, onClose }: PlayerProps) {
   const bufferedPct = totalDuration > 0 ? Math.min(100, (Math.max(buffered, chunkBuffered) / totalDuration) * 100) : 0;
 
   const sourceHeight = meta?.video?.height ?? 1080;
+  const sourceWidth = meta?.video?.width ?? 1920;
   const availableHeights = useMemo(() => {
     const filtered = STANDARD_HEIGHTS.filter((h) => h <= sourceHeight);
     if (!filtered.includes(sourceHeight)) {
@@ -572,17 +578,20 @@ export function Player({ item, onClose }: PlayerProps) {
   const qualityOptions = useMemo(() => {
     const opts: { id: string; label: string }[] = [];
     if (isDirectPlayable) {
-      opts.push({ id: "direct", label: `Original (${getQualityLabel(sourceHeight)})` });
+      opts.push({ id: "direct", label: `Original (Direct)` });
     }
+    opts.push({ id: "hls-original", label: `Original HLS (${getQualityLabel(sourceHeight, sourceWidth)})` });
     opts.push({ id: "auto", label: "Auto (HLS)" });
     for (const h of availableHeights) {
-      opts.push({
-        id: `res-${h}`,
-        label: `${getQualityLabel(h)}`,
-      });
+      if (h < sourceHeight) {
+        opts.push({
+          id: `res-${h}`,
+          label: `${getQualityLabel(h)}`,
+        });
+      }
     }
     return opts;
-  }, [isDirectPlayable, sourceHeight, availableHeights]);
+  }, [isDirectPlayable, sourceHeight, sourceWidth, availableHeights]);
 
   return (
     <div

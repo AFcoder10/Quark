@@ -30,13 +30,11 @@ def get_fanart() -> FanArtProvider:
 
 def get_opensubtitles() -> OpenSubtitlesProvider:
     global _opensubtitles
-    if _opensubtitles is None:
-        from app.config.settings import settings
+    from app.config.settings import settings
 
-        config = settings.data.providers.opensubtitles
-        _opensubtitles = OpenSubtitlesProvider(
-            api_key=config.api_key,
-        )
+    config = settings.data.providers.opensubtitles
+    if _opensubtitles is None or _opensubtitles.api_key != config.api_key:
+        _opensubtitles = OpenSubtitlesProvider(api_key=config.api_key)
     return _opensubtitles
 
 

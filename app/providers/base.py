@@ -23,7 +23,10 @@ class BaseProvider:
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
                 follow_redirects=True,
-                headers={"User-Agent": "Quark/0.1"},
+                headers={
+                    "User-Agent": "Quark/0.1.0 (Quark Media Server; https://github.com/quark)",
+                    "Accept": "application/json",
+                },
             )
         return self._client
 
@@ -39,7 +42,34 @@ class BaseProvider:
             raise ProviderError(f"{self.name} request failed: {exc}") from exc
         if response.status_code != 200:
             raise ProviderError(f"{self.name} returned HTTP {response.status_code}", response.status_code)
-        return response.json()
+        content_type = response.headers.get("content-type", "")
+        if "json" not in content_type.lower():
+            raise ProviderError(
+                f"{self.name} returned non-JSON response "
+                f"(HTTP {response.status_code}, content-type: {content_type or 'none'})"
+            )
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ProviderError(f"{self.name} returned malformed JSON") from exc
+
+    async def _post_json(self, url: str, *, json: dict | None = None, headers: dict | None = None) -> dict:
+        try:
+            response = await self.client.post(url, json=json, headers=headers)
+        except httpx.HTTPError as exc:
+            raise ProviderError(f"{self.name} request failed: {exc}") from exc
+        if response.status_code != 200:
+            raise ProviderError(f"{self.name} returned HTTP {response.status_code}", response.status_code)
+        content_type = response.headers.get("content-type", "")
+        if "json" not in content_type.lower():
+            raise ProviderError(
+                f"{self.name} returned non-JSON response "
+                f"(HTTP {response.status_code}, content-type: {content_type or 'none'})"
+            )
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ProviderError(f"{self.name} returned malformed JSON") from exc
 
     async def _get_bytes(self, url: str, *, headers: dict | None = None) -> bytes:
         try:

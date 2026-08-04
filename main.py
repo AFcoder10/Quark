@@ -1,16 +1,24 @@
 import argparse
+import asyncio
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 BASE_DIR = Path(__file__).parent.resolve()
 WEB_DIR = BASE_DIR / "web"
 
 
 def run_backend():
+    import asyncio
     from app.config.settings import settings
     import uvicorn
+
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
     settings.load()
     uvicorn.run(
@@ -20,6 +28,7 @@ def run_backend():
         reload=True,
         reload_dirs=["app"],
         log_level=settings.data.server.log_level.lower(),
+        loop="asyncio",
     )
 
 

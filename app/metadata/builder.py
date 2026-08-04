@@ -270,7 +270,7 @@ class MetadataBuilder:
             meta.files[0].path = str(new_path)
         event_bus.publish("metadata.renamed", media_id=meta.media_id, old=current_path.name, new=new_name)
 
-    DIRECT_PLAY_AUDIO_CODECS = {"aac", "mp3", "opus", "vorbis", "flac", "eac3", "ac3"}
+    DIRECT_PLAY_AUDIO_CODECS = {"aac", "mp3", "opus", "vorbis", "flac"}
 
     def _direct_play_supported(self, meta: Metadata) -> tuple[bool, str]:
         video = meta.video
@@ -286,7 +286,9 @@ class MetadataBuilder:
             primary_audio = meta.audio[0]
             audio_codec = (primary_audio.codec or "").lower()
             if audio_codec and audio_codec not in self.DIRECT_PLAY_AUDIO_CODECS:
-                return False, f"audio codec {audio_codec} requires transcode for browser audio playback"
+                return False, f"audio codec {audio_codec} requires audio transcode for browser playback"
+            if primary_audio.channels and primary_audio.channels > 2 and audio_codec not in ("aac", "mp3"):
+                return False, f"surround audio ({primary_audio.channels}ch {audio_codec}) requires audio transcode"
 
         return True, "direct play supported"
 

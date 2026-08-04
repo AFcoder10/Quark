@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from contextlib import asynccontextmanager, suppress
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware

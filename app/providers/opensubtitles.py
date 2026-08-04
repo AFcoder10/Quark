@@ -4,6 +4,8 @@ import httpx
 
 from app.providers.base import BaseProvider, ProviderError
 
+USER_AGENT = "Quark/0.1.0 (Quark Media Server; https://github.com/quark)"
+
 
 class OpenSubtitlesProvider(BaseProvider):
     name = "opensubtitles"
@@ -15,7 +17,12 @@ class OpenSubtitlesProvider(BaseProvider):
         self._token: str | None = None
 
     def _auth_headers(self) -> dict:
-        return {"Api-Key": self.api_key}
+        return {
+            "Api-Key": self.api_key,
+            "User-Agent": USER_AGENT,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
 
     async def search(
         self,
@@ -42,29 +49,20 @@ class OpenSubtitlesProvider(BaseProvider):
                 params["episode_number"] = episode
         else:
             params["type"] = "movie"
-        try:
-            data = await self._get_json(f"{self.BASE_URL}/subtitles", params=params, headers=self._auth_headers())
-        except ProviderError:
-            raise
+        data = await self._get_json(f"{self.BASE_URL}/subtitles", params=params, headers=self._auth_headers())
         return data.get("data", [])
 
     async def download(self, file_id: int) -> tuple[bytes, str]:
         if not self.api_key:
             raise ProviderError("OpenSubtitles API key not configured")
-        try:
-            data = await self._get_json(
-                f"{self.BASE_URL}/download",
-                params={"file_id": file_id},
-                headers=self._auth_headers(),
-            )
-        except ProviderError:
-            raise
+        data = await self._post_json(
+            f"{self.BASE_URL}/download",
+            json={"file_id": file_id},
+            headers=self._auth_headers(),
+        )
         link = data.get("link")
         file_name = data.get("file_name", "subtitle")
         if not link:
             raise ProviderError("OpenSubtitles download returned no link")
-        try:
-            content = await self._get_bytes(link)
-        except ProviderError:
-            raise
+        content = await self._get_bytes(link)
         return content, file_name
