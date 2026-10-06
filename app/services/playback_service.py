@@ -24,6 +24,12 @@ class PlaybackService:
     def artwork(self, media_id: str, name: str) -> Response:
         return self.manager.artwork(media_id, name)
 
+    def thumbnail(self, media_id: str) -> Response:
+        return self.manager.thumbnail(media_id)
+
+    def file_response(self, media_id: str) -> Response:
+        return self.manager.file_response(media_id)
+
     def subtitle_tracks(self, media_id: str) -> list[dict] | None:
         return self.manager.subtitle_tracks(media_id)
 

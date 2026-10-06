@@ -1,0 +1,165 @@
+.chip-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0 20px;
+}
+
+.chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #2a2a35);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.chip.active {
+  background: var(--accent, #e50914);
+  border-color: transparent;
+  color: #fff;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 18px;
+}
+
+.album-card {
+  cursor: pointer;
+}
+
+.album-cover {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2, #1a1a24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #888);
+}
+
+.album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.album-cover svg {
+  width: 48px;
+  height: 48px;
+}
+
+.album-title {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.album-artist {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.album-drawer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: min(440px, 100%);
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--surface, #15151d);
+  border-left: 1px solid var(--border, #2a2a35);
+  border-top: 1px solid var(--border, #2a2a35);
+  padding: 18px;
+  z-index: 40;
+}
+
+.album-drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.track-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border, #2a2a35);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.track-row:hover,
+.track-row.active {
+  background: var(--surface-2, #1a1a24);
+}
+
+.track-num {
+  width: 22px;
+  text-align: right;
+  opacity: 0.6;
+  font-size: 13px;
+}
+
+.track-title {
+  flex: 1;
+}
+
+.track-dur {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.track-row svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.now-playing {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--surface, #15151d);
+  border-top: 1px solid var(--border, #2a2a35);
+  z-index: 50;
+}
+
+.np-info {
+  min-width: 180px;
+}
+
+.np-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.np-artist {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.np-audio {
+  flex: 1;
+  height: 36px;
+}

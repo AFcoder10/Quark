@@ -45,7 +45,7 @@ class SubtitleManager:
             try:
                 content, file_name = await provider.download(file_id)
             except ProviderError as exc:
-                logger.warning("Subtitle download failed: %s", exc)
+                logger.warning("Subtitle download failed: {}", exc)
                 continue
             if not content:
                 continue

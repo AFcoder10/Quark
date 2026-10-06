@@ -17,13 +17,13 @@ from app.metadata.models import (
     ChapterInfo,
     FileInfo,
     Metadata,
+    PlaybackInfo,
     SubtitleTrackInfo,
     VideoInfo,
 )
 from app.providers import get_fanart, get_tmdb
 from app.providers.base import ProviderError
 from app.subtitles.manager import SubtitleManager
-from app.utils.json_utils import write_json
 from app.utils.time_utils import utcnow_iso
 
 
@@ -34,6 +34,20 @@ class MetadataBuilder:
 
     async def build(self, item: MediaItem, *, download_subtitles: bool | None = None) -> Metadata:
         event_bus.publish("metadata.started", media_id=item.media_id)
+
+        if item.kind == "audio":
+            meta = self._build_music(item)
+            meta.updated_at = utcnow_iso()
+            self.save(meta)
+            event_bus.publish("metadata.completed", media_id=meta.media_id, title=meta.title)
+            return meta
+
+        if item.kind == "photo":
+            meta = self._build_photo(item)
+            meta.updated_at = utcnow_iso()
+            self.save(meta)
+            event_bus.publish("metadata.completed", media_id=meta.media_id, title=meta.title)
+            return meta
 
         probe = await probe_media(item.primary)
 
@@ -53,6 +67,67 @@ class MetadataBuilder:
         event_bus.publish("metadata.completed", media_id=meta.media_id, title=meta.title)
         return meta
 
+    def _build_music(self, item: MediaItem) -> Metadata:
+        from app.media.music import read_tags
+
+        tags = read_tags(item.primary)
+        now = utcnow_iso()
+        return Metadata(
+            media_id=item.media_id,
+            kind="audio",
+            library_id=item.library_id,
+            title=item.title,
+            artist=item.artist or tags.get("artist"),
+            album=item.album or tags.get("album"),
+            album_artist=item.album_artist or tags.get("album_artist"),
+            track_number=item.track_number if item.track_number is not None else tags.get("track_number"),
+            disc_number=item.disc_number if item.disc_number is not None else tags.get("disc_number"),
+            genre=tags.get("genre"),
+            files=[
+                FileInfo(
+                    path=item.primary_file,
+                    size=item.files[0].size if item.files else 0,
+                    extension=item.files[0].extension if item.files else item.primary.suffix.lstrip("."),
+                    container=item.primary.suffix.lower().lstrip("."),
+                    duration=tags.get("duration"),
+                )
+            ],
+            primary_file=item.primary_file,
+            playback=PlaybackInfo(direct_play_supported=True, mode="direct", reason="audio direct play"),
+            created_at=now,
+            updated_at=now,
+        )
+
+    def _build_photo(self, item: MediaItem) -> Metadata:
+        from app.media.photo import read_exif
+
+        exif = read_exif(item.primary)
+        now = utcnow_iso()
+        return Metadata(
+            media_id=item.media_id,
+            kind="photo",
+            library_id=item.library_id,
+            title=item.title,
+            files=[
+                FileInfo(
+                    path=item.primary_file,
+                    size=item.files[0].size if item.files else 0,
+                    extension=item.files[0].extension if item.files else item.primary.suffix.lstrip("."),
+                    container=item.primary.suffix.lower().lstrip("."),
+                )
+            ],
+            primary_file=item.primary_file,
+            taken_at=exif.get("taken_at"),
+            camera=exif.get("camera"),
+            width=exif.get("width"),
+            height=exif.get("height"),
+            latitude=exif.get("latitude"),
+            longitude=exif.get("longitude"),
+            playback=PlaybackInfo(direct_play_supported=True, mode="direct", reason="image direct"),
+            created_at=now,
+            updated_at=now,
+        )
+
     def _from_probe(self, item: MediaItem, probe: ProbeResult) -> Metadata:
         video = None
         if probe.video is not None:
@@ -63,7 +138,7 @@ class MetadataBuilder:
                 bitrate=probe.video.bitrate,
                 fps=probe.video.fps,
                 profile=probe.video.profile,
-                level=probe.video.level,
+                level=str(probe.video.level) if probe.video.level is not None else None,
                 pixel_format=probe.video.pixel_format,
                 color_space=probe.video.color_space,
             )
@@ -192,7 +267,7 @@ class MetadataBuilder:
                     if runtimes and runtimes[0]:
                         meta.runtime = runtimes[0]
         except ProviderError as exc:
-            logger.warning("TMDB match skipped for %s: %s", meta.media_id, exc)
+            logger.warning("TMDB match skipped for {}: {}", meta.media_id, exc)
 
     async def _fetch_still(self, meta: Metadata, still_path: str) -> str | None:
         try:
@@ -219,7 +294,7 @@ class MetadataBuilder:
         try:
             meta.artwork = await self.artwork.fetch_and_cache(meta)
         except ProviderError as exc:
-            logger.warning("Artwork skipped for %s: %s", meta.media_id, exc)
+            logger.warning("Artwork skipped for {}: {}", meta.media_id, exc)
 
     async def _apply_external_subtitles(self, meta: Metadata, download_subtitles: bool | None) -> None:
         config = settings.data.providers.opensubtitles
@@ -231,7 +306,7 @@ class MetadataBuilder:
             if new_tracks:
                 meta.subtitles.extend(new_tracks)
         except ProviderError as exc:
-            logger.warning("Subtitle download skipped for %s: %s", meta.media_id, exc)
+            logger.warning("Subtitle download skipped for {}: {}", meta.media_id, exc)
 
     async def _rename_episode_file(self, meta: Metadata, episode: dict) -> None:
         current_path = Path(meta.primary_file)
@@ -294,12 +369,11 @@ class MetadataBuilder:
         return True, "direct play supported"
 
     def load(self, media_id: str) -> Metadata | None:
-        from app.utils.json_utils import read_json
+        from app.db.repositories import metadata as metadata_repo
 
-        raw = read_json(cache.metadata_file(media_id))
-        if not raw:
-            return None
-        return Metadata.model_validate(raw)
+        return metadata_repo.get(media_id)
 
     def save(self, meta: Metadata) -> None:
-        write_json(cache.metadata_file(meta.media_id), meta.model_dump(mode="json"))
+        from app.db.repositories import metadata as metadata_repo
+
+        metadata_repo.upsert(meta)

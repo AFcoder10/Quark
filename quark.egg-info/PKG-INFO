@@ -1,0 +1,159 @@
+Metadata-Version: 2.4
+Name: quark
+Version: 0.1.0
+Summary: Self-hosted media streaming server (backend)
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+
+# Quark - Self-Hosted Media Streaming Server
+
+Quark is a self-hosted media streaming server built with Python 3.12 and FastAPI, focused on original quality playback, adaptive HLS streaming, and rich metadata.
+
+## Features
+
+- **Direct Play** via HTTP Byte Range requests
+- **Adaptive HLS streaming** with live transcoding fallback
+- **Optimization queue** for pre-encoded HLS renditions (2160p to 144p)
+- **Metadata** via TMDB, artwork via FanArt.tv, subtitles via OpenSubtitles
+- **JSON-based storage** (no SQL database)
+- **Cross-platform** (Windows + Linux)
+
+## Quick Start
+
+```bash
+# Windows
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# Linux
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Configuration
+
+1. Edit `.env` (or copy from `.env.example`) — add API keys for TMDB, FanArt.tv, OpenSubtitles
+2. Edit `config/libraries.json` — add media library paths
+
+## Media Folder Structure
+
+Movies and TV shows live in separate folders:
+
+```
+media/
+├── movies/                        # Movies — any filename
+│   └── Big_Buck_Bunny_2008_720p.mp4
+└── tvshows/                       # TV shows — strict structure
+    └── Breaking Bad/              # Folder named after the show (TMDB search term)
+        ├── S01/                   # Season folders: S01, S02, ... or "Season 01"
+        │   ├── ep1.mp4            # Any episode file — only the episode number matters
+        │   ├── EP02.mp4
+        │   └── episode03.mkv
+        └── S02/
+            └── episode01.mp4
+```
+
+**TV rules:**
+- `tvshows/<Show Name>/<S##>/<episode files>` — exactly this structure
+- Season folders: `S01`, `S02`, `Season 01`, `season_1`
+- Episode numbers are detected from filenames: `ep1`, `EP01`, `episode3`, `01x01`, `1x02`, `S01E01`
+- The show folder name is used to search TMDB
+- After metadata lookup, files are renamed to `01x01 - Pilot.mp4`
+  (the episode name comes from TMDB)
+
+## Running
+
+```bash
+python run.py
+```
+
+The server starts at `http://127.0.0.1:8090` and serves the web UI at the root.
+
+## Web UI
+
+Quark ships with a built-in React web client (in `web/`).
+
+**Dev mode** (hot reload on `http://127.0.0.1:5173`):
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+**Production build** (served by the backend at `/`):
+
+```bash
+cd web
+npm run build
+```
+
+The UI includes:
+- Movie and TV show browsing with poster grids and detail pages
+- Custom right-click context menu (replaces the browser menu) — Play, Optimize, Refresh metadata, Download subtitles, Mark watched, Remove
+- Full-screen player with Direct / HLS / Transcode mode switching
+- Watch progress & "mark as watched" tracking
+- Plex-style settings page: server, libraries, streaming, optimization, providers
+
+## API Endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/system/health` | Health check |
+| `GET /api/system/settings` | Get settings (API keys masked) |
+| `PUT /api/system/settings` | Save settings (`***` keeps existing key) |
+| `POST /api/system/settings/reload` | Reload settings from disk |
+| `GET /api/libraries` | List libraries |
+| `POST /api/libraries` | Add library |
+| `DELETE /api/libraries/{id}` | Remove library |
+| `POST /api/libraries/{id}/scan` | Scan library |
+| `GET /api/items` | List media items |
+| `GET /api/items/{id}` | Item detail + metadata |
+| `GET /api/items/{id}/stream` | Stream item (auto/direct/hls/transcode) |
+| `GET /api/items/{id}/hls/master.m3u8` | HLS master playlist |
+| `POST /api/items/{id}/optimize` | Queue for HLS optimization |
+| `GET /api/items/{id}/artwork/{type}` | Get artwork |
+| `GET /api/items/{id}/subtitles` | List subtitles |
+| `GET /api/state/{id}` | Watch progress / watched state |
+| `POST /api/state/{id}/watch` | Mark watched/unwatched |
+| `POST /api/state/{id}/progress` | Save playback position |
+| `WS /ws` | Real-time event stream |
+
+## Project Structure
+
+```
+quark/
+├── app/
+│   ├── api/          # REST API routes
+│   ├── scanner/      # Library scanner
+│   ├── metadata/     # Metadata builder
+│   ├── artwork/      # Artwork downloader
+│   ├── subtitles/    # Subtitle manager
+│   ├── media/        # Media detection & probing
+│   ├── streaming/    # Byte range + HLS streaming
+│   ├── optimization/ # HLS optimization queue
+│   ├── transcoding/  # FFmpeg process management
+│   ├── providers/    # TMDB, FanArt, OpenSubtitles
+│   ├── services/     # Business logic services
+│   ├── workers/      # Background workers
+│   ├── cache/        # Cache management
+│   ├── config/       # Settings & libraries
+│   ├── system/       # Platform detection & binaries
+│   ├── utils/        # Logging, JSON, hashing, filenames
+│   ├── websocket/    # WebSocket manager
+│   ├── events/       # Event bus
+│   └── main.py       # App entry point
+├── config/           # Configuration files
+├── media/            # Media library root
+├── cache/            # Cache directory
+├── docs/             # Documentation
+├── logs/             # Log files
+└── tests/            # Test suite
+```
+
+## External Dependencies
+
+- **FFmpeg** (includes FFprobe) — must be on PATH
+- **MediaInfo CLI** — optional, enhances media probing

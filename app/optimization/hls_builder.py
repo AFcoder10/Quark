@@ -16,7 +16,6 @@ from app.metadata.models import (
 from app.streaming.hls import build_master_playlist
 from app.system.commands import FFMPEG, require_binary
 from app.transcoding.ffmpeg import FFmpegProcessError, FFmpegRunner
-from app.utils.json_utils import write_json
 from app.utils.time_utils import utcnow_iso
 
 RENDITION_HEIGHTS = {
@@ -261,7 +260,6 @@ class HLSBuilder:
         meta.optimization.error = None
         meta.optimization.updated_at = utcnow_iso()
         meta.updated_at = utcnow_iso()
-        write_json(cache.metadata_file(media_id), meta.model_dump(mode="json"))
         self._progress(1.0, "Optimization complete")
         return meta
 

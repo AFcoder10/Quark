@@ -2,9 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { useApp } from "../context";
 import type { Library, Settings } from "../types";
-import { FilmIcon, FolderIcon, PlusIcon, RefreshIcon, RestartIcon, SparkIcon, TrashIcon, TvIcon } from "../icons";
+import { FilmIcon, FolderIcon, MusicIcon, PhotoIcon, PlusIcon, RefreshIcon, RestartIcon, SparkIcon, TrashIcon, TvIcon } from "../icons";
+import { LIBRARY_LABELS, LibrarySetup } from "../components/LibrarySetup";
 
 type Section = "server" | "libraries" | "streaming" | "optimization" | "providers";
+
+function libIcon(type: string) {
+  switch (type) {
+    case "show":
+      return <TvIcon />;
+    case "music":
+      return <MusicIcon />;
+    case "photo":
+      return <PhotoIcon />;
+    case "mixed":
+      return <FolderIcon />;
+    default:
+      return <FilmIcon />;
+  }
+}
 
 export default function SettingsPage() {
   const { notify, refreshLibraries, libraries, refreshAll } = useApp();
@@ -12,7 +28,7 @@ export default function SettingsPage() {
   const [section, setSection] = useState<Section>("server");
   const [saving, setSaving] = useState(false);
   const [showAddLib, setShowAddLib] = useState(false);
-  const [newLib, setNewLib] = useState({ name: "", path: "", type: "movie" });
+  const [newLibType, setNewLibType] = useState<"movie" | "show" | "music" | "photo" | "mixed">("movie");
   const [scanning, setScanning] = useState<string | null>(null);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [restarting, setRestarting] = useState(false);
@@ -66,22 +82,6 @@ export default function SettingsPage() {
       notify(String(error), "error");
     } finally {
       setRestarting(false);
-    }
-  };
-
-  const addLibrary = async () => {
-    if (!newLib.name.trim() || !newLib.path.trim()) {
-      notify("Name and path are required", "error");
-      return;
-    }
-    try {
-      await api.addLibrary({ name: newLib.name.trim(), path: newLib.path.trim(), type: newLib.type });
-      notify("Library added", "success");
-      setShowAddLib(false);
-      setNewLib({ name: "", path: "", type: "movie" });
-      refreshLibraries();
-    } catch (error) {
-      notify(String(error), "error");
     }
   };
 
@@ -225,20 +225,19 @@ export default function SettingsPage() {
               <div className="flex gap-md mb-20">
                 <button className="btn btn-primary" onClick={() => setShowAddLib(true)}>
                   <PlusIcon /> Add Library
-                </button>
-                <button className="btn btn-ghost" onClick={scanAll}>
+                </button>                <button className="btn btn-ghost" onClick={scanAll}>
                   <RefreshIcon /> {scanning === "all" ? "Scanning..." : "Scan All"}
                 </button>
               </div>
               {libraries.length === 0 && <p className="panel-desc">No libraries configured.</p>}
               {libraries.map((lib) => (
                 <div key={lib.id} className="lib-card">
-                  <div className="lib-icon">{lib.type === "show" ? <TvIcon /> : <FilmIcon />}</div>
+                  <div className="lib-icon">{libIcon(lib.type)}</div>
                   <div className="lib-info">
                     <div className="lib-name">{lib.name}</div>
                     <div className="lib-path">{lib.path_resolved}</div>
                   </div>
-                  <span className="lib-type">{lib.type}</span>
+                  <span className="lib-type">{LIBRARY_LABELS[lib.type] ?? lib.type}</span>
                   <div className="lib-actions">
                     <button className="icon-btn" title="Scan" onClick={() => scanLibrary(lib)}>
                       <RefreshIcon />
@@ -250,7 +249,8 @@ export default function SettingsPage() {
                 </div>
               ))}
               <p className="panel-desc">
-                Movies go in <b>media/movies/</b>. TV shows use <b>media/tvshows/ShowName/S01/ep1.mp4</b>.
+                Movies: any files in a folder. TV: <b>ShowName/S01/ep1.mp4</b>. Music: artist/album folders
+                (tags are read from files). Photos: any image folder.
               </p>
             </>
           )}
@@ -449,35 +449,26 @@ export default function SettingsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Add Library</h3>
             <div className="form-field">
-              <label>Name</label>
-              <input
-                value={newLib.name}
-                onChange={(e) => setNewLib({ ...newLib, name: e.target.value })}
-                placeholder="e.g. Movies"
-                autoFocus
-              />
-            </div>
-            <div className="form-field">
-              <label>Path</label>
-              <input
-                value={newLib.path}
-                onChange={(e) => setNewLib({ ...newLib, path: e.target.value })}
-                placeholder="./media/movies or C:/media/movies"
-              />
-            </div>
-            <div className="form-field">
               <label>Type</label>
-              <select value={newLib.type} onChange={(e) => setNewLib({ ...newLib, type: e.target.value })}>
+              <select
+                value={newLibType}
+                onChange={(e) => setNewLibType(e.target.value as typeof newLibType)}
+              >
                 <option value="movie">Movie library</option>
                 <option value="show">TV Show library</option>
+                <option value="music">Music library</option>
+                <option value="photo">Photo library</option>
+                <option value="mixed">Mixed (movies + shows)</option>
               </select>
             </div>
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setShowAddLib(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={addLibrary}>
-                <FolderIcon /> Add
-              </button>
-            </div>
+            <LibrarySetup
+              type={newLibType}
+              onCreated={() => {
+                setShowAddLib(false);
+                refreshAll();
+              }}
+              onClose={() => setShowAddLib(false)}
+            />
           </div>
         </div>
       )}

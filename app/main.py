@@ -42,6 +42,12 @@ def create_app() -> FastAPI:
         cache.ensure()
         setup_logger(BASE_DIR / "logs", settings.data.server.log_level)
 
+        from app.db.database import db
+        from app.db.migration import maybe_migrate
+
+        db.connect()
+        maybe_migrate()
+
         index = LibraryIndex(cache.index_file)
         index.load()
 

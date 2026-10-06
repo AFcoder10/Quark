@@ -2,40 +2,47 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.db.repositories import items as _items
 from app.media.models import MediaItem
-from app.utils.json_utils import read_json, write_json
 
 
 class LibraryIndex:
-    def __init__(self, file: Path) -> None:
+    """Facade over the SQLite item repository.
+
+    Kept with the same method surface as the original JSON-backed index so the
+    rest of the codebase (and the API layer) does not need to change.
+    """
+
+    def __init__(self, file: Path | None = None) -> None:
+        # `file` is retained for backwards compatibility; persistence now lives
+        # in SQLite (see app/db).
         self.file = file
-        self._items: dict[str, MediaItem] = {}
+        self._items = _items
 
     def load(self) -> None:
-        data = read_json(self.file) or []
-        self._items = {
-            entry["media_id"]: MediaItem.model_validate(entry)
-            for entry in data
-            if isinstance(entry, dict) and "media_id" in entry
-        }
+        self._items.load()
 
     def save(self) -> None:
-        write_json(self.file, [item.model_dump(mode="json") for item in self._items.values()])
+        # Writes are persisted immediately by the repository.
+        return None
 
     def upsert(self, item: MediaItem) -> None:
-        self._items[item.media_id] = item
+        self._items.upsert(item)
 
     def get(self, media_id: str) -> MediaItem | None:
         return self._items.get(media_id)
 
     def all(self) -> list[MediaItem]:
-        return list(self._items.values())
+        return self._items.all()
 
     def by_library(self, library_id: str) -> list[MediaItem]:
-        return [item for item in self._items.values() if item.library_id == library_id]
+        return self._items.by_library(library_id)
+
+    def by_series(self, series_title: str) -> list[MediaItem]:
+        return self._items.by_series(series_title)
 
     def remove(self, media_id: str) -> bool:
-        return self._items.pop(media_id, None) is not None
+        return self._items.remove(media_id)
 
     def __len__(self) -> int:
         return len(self._items)

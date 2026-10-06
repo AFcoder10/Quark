@@ -1,14 +1,20 @@
 import type {
+  Album,
+  AlbumDetail,
+  Artist,
+  BrowseResult,
   Health,
   Item,
   Library,
   Metadata,
   OptimizationStatus,
+  Photo,
   PlaybackState,
   RecentState,
   ScanJob,
   Settings,
   Show,
+  Track,
 } from "./types";
 
 const BASE = "/api";
@@ -82,9 +88,38 @@ export const api = {
   settings: () => request<Settings>("/system/settings"),
   saveSettings: (body: Partial<Settings>) => request<Settings>("/system/settings", { method: "PUT", body: JSON.stringify(body) }),
   restartServer: () => request<{ status: string }>("/system/restart", { method: "POST" }),
+  browse: (path?: string) => {
+    const suffix = path ? `?path=${encodeURIComponent(path)}` : "";
+    return request<BrowseResult>(`/system/browse${suffix}`);
+  },
 
   shows: () => request<Show[]>("/shows"),
   show: (title: string) => request<Show>(`/shows/${encodeURIComponent(title)}`),
+
+  artists: () => request<Artist[]>("/music"),
+  albums: (artist?: string) => {
+    const suffix = artist ? `?artist=${encodeURIComponent(artist)}` : "";
+    return request<Album[]>(`/music/albums${suffix}`);
+  },
+  album: (artist: string, album: string) =>
+    request<AlbumDetail>(`/music/album?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`),
+  tracks: (params?: { artist?: string; album?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.artist) qs.set("artist", params.artist);
+    if (params?.album) qs.set("album", params.album);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<Track[]>(`/music/tracks${suffix}`);
+  },
+
+  photos: (params?: { library_id?: string; limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.library_id) qs.set("library_id", params.library_id);
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    if (params?.offset != null) qs.set("offset", String(params.offset));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<Photo[]>(`/photos${suffix}`);
+  },
+  photo: (id: string) => request<Photo>(`/photos/${id}`),
 };
 
 export function streamUrl(id: string, mode?: string): string {
@@ -94,4 +129,12 @@ export function streamUrl(id: string, mode?: string): string {
 
 export function artworkUrl(id: string, name: string): string {
   return `/api/items/${id}/artwork/${name}`;
+}
+
+export function thumbnailUrl(id: string): string {
+  return `/api/items/${id}/thumbnail`;
+}
+
+export function fileUrl(id: string): string {
+  return `/api/items/${id}/file`;
 }

@@ -35,8 +35,8 @@ def add_library(
     library_type = body.get("type", "movie")
     if not name or not path:
         raise HTTPException(status_code=400, detail="name and path are required")
-    if library_type not in ("movie", "show"):
-        raise HTTPException(status_code=400, detail="type must be 'movie' or 'show'")
+    if library_type not in ("movie", "show", "music", "photo", "mixed"):
+        raise HTTPException(status_code=400, detail="type must be one of: movie, show, music, photo, mixed")
     library = service.add_library(name=name, path=path, library_type=library_type)
     library_data = library.model_dump(mode="json")
     library_data["path_resolved"] = str(library.resolve_path())

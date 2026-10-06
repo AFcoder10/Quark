@@ -10,3 +10,5 @@ orjson
 mediainfo
 ffmpeg-python
 python-dotenv
+mutagen
+Pillow

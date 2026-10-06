@@ -2,7 +2,7 @@ export interface Library {
   id: string;
   name: string;
   path: string;
-  type: "movie" | "show";
+  type: "movie" | "show" | "music" | "photo" | "mixed";
   enabled: boolean;
   path_resolved: string;
 }
@@ -92,19 +92,82 @@ export interface Metadata {
 
 export interface Item {
   media_id: string;
-  kind: "movie" | "episode";
+  kind: "movie" | "episode" | "audio" | "album" | "artist" | "photo" | "video";
   library_id: string;
   title: string;
   series_title?: string | null;
   season?: number | null;
   episode?: number | null;
   year?: number | null;
+  artist?: string | null;
+  album?: string | null;
+  album_artist?: string | null;
+  track_number?: number | null;
+  disc_number?: number | null;
+  duration?: number | null;
   display_title: string;
   primary_file: string;
   has_metadata: boolean;
   optimized: boolean;
   artwork?: Record<string, string>;
   metadata?: Metadata;
+}
+
+export interface Artist {
+  artist: string;
+  track_count: number;
+  album_count: number;
+}
+
+export interface Album {
+  artist: string;
+  album: string;
+  track_count: number;
+  year?: number | null;
+  cover_media_id?: string | null;
+}
+
+export interface Track {
+  media_id: string;
+  title: string;
+  artist?: string | null;
+  album?: string | null;
+  album_artist?: string | null;
+  track_number?: number | null;
+  disc_number?: number | null;
+  duration?: number | null;
+  display_title: string;
+  library_id: string;
+}
+
+export interface AlbumDetail {
+  artist: string;
+  album: string;
+  tracks: Track[];
+}
+
+export interface Photo {
+  media_id: string;
+  title: string;
+  library_id: string;
+  primary_file: string;
+  taken_at?: string | null;
+  width?: number | null;
+  height?: number | null;
+  camera?: string | null;
+  metadata?: Metadata;
+}
+
+export interface BrowseEntry {
+  name: string;
+  path: string;
+}
+
+export interface BrowseResult {
+  path: string;
+  parent: string | null;
+  home: string;
+  entries: BrowseEntry[];
 }
 
 export interface ShowEpisode {

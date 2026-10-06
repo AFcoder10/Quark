@@ -128,6 +128,32 @@ class PlaybackManager:
             raise HTTPException(status_code=404, detail="Artwork not cached")
         return FileResponse(path)
 
+    def thumbnail(self, media_id: str) -> Response:
+        meta = self._metadata(media_id)
+        if meta is None:
+            raise HTTPException(status_code=404, detail="Item not found")
+        from app.media.thumbnails import ensure_thumbnail
+
+        # Prefer a cached artwork thumbnail if one exists (e.g. album covers).
+        existing = meta.artwork.thumb or meta.artwork.poster
+        if existing and Path(existing).is_file() and meta.kind != "photo":
+            return FileResponse(existing)
+        thumb = ensure_thumbnail(media_id, Path(meta.primary_file))
+        if thumb is None:
+            raise HTTPException(status_code=404, detail="Thumbnail unavailable")
+        return FileResponse(thumb, media_type="image/webp")
+
+    def file_response(self, media_id: str) -> Response:
+        """Serve the original file for images (viewing) and audio (no range)."""
+        meta = self._metadata(media_id)
+        if meta is None:
+            raise HTTPException(status_code=404, detail="Item not found")
+        path = Path(meta.primary_file)
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="Media file missing")
+        media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        return FileResponse(path, media_type=media_type)
+
     def subtitle_tracks(self, media_id: str) -> list[dict] | None:
         meta = self._metadata(media_id)
         if meta is None:

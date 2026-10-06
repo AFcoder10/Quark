@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.config.libraries import libraries
@@ -13,6 +14,44 @@ from app.system.platform import platform_name
 from app.api.deps import get_index
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+@router.get("/browse")
+def browse(path: str | None = None) -> dict:
+    """List directories under `path` so the UI can offer a folder picker.
+
+    Local, single-user server: browsing the filesystem is expected (as in
+    Jellyfin/Plex setup). Directories only — files are not returned.
+    """
+    base = Path(path).expanduser() if path else Path.home()
+    try:
+        base = base.resolve()
+    except OSError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if not base.exists() or not base.is_dir():
+        raise HTTPException(status_code=404, detail=f"Folder not found: {base}")
+
+    entries = []
+    try:
+        for child in sorted(base.iterdir(), key=lambda p: p.name.lower()):
+            if child.name.startswith("."):
+                continue
+            try:
+                if child.is_dir():
+                    entries.append({"name": child.name, "path": str(child)})
+            except OSError:
+                continue
+    except PermissionError:
+        raise HTTPException(status_code=403, detail=f"Permission denied: {base}")
+
+    parent = str(base.parent) if base.parent != base else None
+    return {
+        "path": str(base),
+        "parent": parent,
+        "home": str(Path.home()),
+        "entries": entries,
+    }
+
 
 
 @router.get("/health")

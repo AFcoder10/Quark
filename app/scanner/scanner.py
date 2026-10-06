@@ -9,7 +9,7 @@ from loguru import logger
 
 from app.config.libraries import Library
 from app.events.bus import event_bus
-from app.media.detection import build_movie_items, build_tvshow_items, is_media_file
+from app.media.registry import build_items
 from app.metadata.builder import MetadataBuilder
 from app.scanner.index import LibraryIndex
 
@@ -34,12 +34,7 @@ class LibraryScanner:
         logger.info("Scanning library '{}' at {}", library.name, root)
         event_bus.publish("scan.started", library_id=library.id, library_name=library.name)
 
-        if library.type == "show":
-            items = await asyncio.to_thread(build_tvshow_items, library, root)
-        else:
-            all_files = await asyncio.to_thread(self._collect_files, root)
-            video_files = [f for f in all_files if is_media_file(f)]
-            items = await asyncio.to_thread(build_movie_items, library, video_files)
+        items = await asyncio.to_thread(build_items, library, root)
 
         previous = self.index.by_library(library.id)
         added = 0
@@ -61,7 +56,7 @@ class LibraryScanner:
         if build_metadata:
             for idx, item in enumerate(items):
                 cached = self.builder.load(item.media_id)
-                if cached is not None and cached.has_tmdb():
+                if cached is not None and cached.is_complete():
                     continue
                 try:
                     await self.builder.build(item, download_subtitles=False)

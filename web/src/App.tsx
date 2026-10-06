@@ -12,6 +12,8 @@ import SearchPage from "./pages/SearchPage";
 import SettingsPage from "./pages/SettingsPage";
 import ItemDetailPage from "./pages/ItemDetailPage";
 import ShowDetailPage from "./pages/ShowDetailPage";
+import MusicPage from "./pages/MusicPage";
+import PhotosPage from "./pages/PhotosPage";
 
 export default function App() {
   const { refreshAll } = useApp();
@@ -38,6 +40,8 @@ export default function App() {
             <Route path="/" element={<><TopBar title="Home" /><div className="content"><HomePage /></div></>} />
             <Route path="/movies" element={<><TopBar title="Movies" /><div className="content"><MoviesPage /></div></>} />
             <Route path="/shows" element={<><TopBar title="TV Shows" /><div className="content"><ShowsPage /></div></>} />
+            <Route path="/music" element={<><TopBar title="Music" /><div className="content"><MusicPage /></div></>} />
+            <Route path="/photos" element={<><TopBar title="Photos" /><div className="content"><PhotosPage /></div></>} />
             <Route path="/search" element={<><TopBar title="Search" /><div className="content"><SearchPage /></div></>} />
             <Route path="/settings" element={<><div className="content"><SettingsPage /></div></>} />
             <Route path="/item/:mediaId" element={<ItemDetailPage />} />

@@ -7,7 +7,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from app.config.settings import BASE_DIR
-from app.utils.json_utils import read_json, write_json
+from app.db.repositories import libraries as _repo
+from app.utils.json_utils import read_json
 
 
 class Library(BaseModel):
@@ -16,7 +17,7 @@ class Library(BaseModel):
     id: str
     name: str
     path: str
-    type: Literal["movie", "show"] = "movie"
+    type: Literal["movie", "show", "music", "photo", "mixed"] = "movie"
     enabled: bool = True
 
     def resolve_path(self) -> Path:
@@ -29,20 +30,38 @@ def _new_id() -> str:
 
 
 class LibrariesManager:
+    """Library folders, stored in the on-device SQLite DB (never committed)."""
+
     def __init__(self) -> None:
         self._libraries: list[Library] = []
 
     @property
-    def path(self) -> Path:
+    def legacy_path(self) -> Path:
         return BASE_DIR / "config" / "libraries.json"
 
     def load(self) -> list[Library]:
-        raw = read_json(self.path)
-        self._libraries = [Library.model_validate(item) for item in raw] if raw else []
+        self._migrate_legacy()
+        self._libraries = [Library.model_validate(row) for row in _repo.all()]
         return self._libraries
 
-    def save(self) -> None:
-        write_json(self.path, [lib.model_dump(mode="json") for lib in self._libraries])
+    def _migrate_legacy(self) -> None:
+        """Import any old config/libraries.json into the DB once, then drop it."""
+        if _repo.count() > 0:
+            return
+        raw = read_json(self.legacy_path)
+        if not isinstance(raw, list):
+            return
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            try:
+                _repo.upsert(Library.model_validate(entry).model_dump(mode="json"))
+            except Exception:
+                continue
+        try:
+            self.legacy_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def all(self) -> list[Library]:
         return list(self._libraries)
@@ -53,14 +72,14 @@ class LibrariesManager:
     def add(self, name: str, path: str, library_type: str) -> Library:
         lib = Library(id=_new_id(), name=name, path=path, type=library_type)
         self._libraries.append(lib)
-        self.save()
+        _repo.upsert(lib.model_dump(mode="json"))
         return lib
 
     def remove(self, library_id: str) -> bool:
         before = len(self._libraries)
         self._libraries = [lib for lib in self._libraries if lib.id != library_id]
         if len(self._libraries) != before:
-            self.save()
+            _repo.delete(library_id)
             return True
         return False
 

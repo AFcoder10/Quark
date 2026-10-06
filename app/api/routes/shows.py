@@ -81,7 +81,7 @@ def list_shows(
                 "number_of_episodes": total_episodes,
                 "episode_count": len(eps),
                 "artwork": artwork,
-                "artwork_urls": _artwork_urls(show_meta, first.media_id),
+                "artwork_urls": _artwork_urls(show_meta, eps[0].media_id),
                 "episodes": [_episode_summary(ep, service.builder.load(ep.media_id)) for ep in eps],
             }
         )

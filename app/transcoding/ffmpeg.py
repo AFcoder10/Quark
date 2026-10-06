@@ -75,4 +75,4 @@ class FFmpegRunner:
                     self.process.stderr.close()
             except Exception:
                 pass
-        logger.debug("Stopped %s process", self.log_tag)
+        logger.debug("Stopped {} process", self.log_tag)
