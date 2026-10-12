@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.media.kinds import MediaKind
+
 
 class ArtworkMapping(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -138,7 +140,7 @@ class Metadata(BaseModel):
 
     schema_version: int = 1
     media_id: str
-    kind: Literal["movie", "episode"] = "movie"
+    kind: MediaKind = MediaKind.MOVIE
     library_id: str
     title: str
     original_title: str | None = None
@@ -177,6 +179,26 @@ class Metadata(BaseModel):
     artwork: ArtworkMapping = ArtworkMapping()
     optimization: OptimizationInfo = OptimizationInfo()
     playback: PlaybackInfo = PlaybackInfo()
+
+    # music vertical
+    artist: str | None = None
+    album: str | None = None
+    album_artist: str | None = None
+    track_number: int | None = None
+    disc_number: int | None = None
+    genre: str | None = None
+    musicbrainz_artist_id: str | None = None
+    musicbrainz_album_id: str | None = None
+    musicbrainz_track_id: str | None = None
+
+    # photo vertical
+    taken_at: str | None = None
+    camera: str | None = None
+    width: int | None = None
+    height: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -186,3 +208,13 @@ class Metadata(BaseModel):
         if self.kind == "episode":
             return bool(self.overview) or (bool(self.title) and not self.title.startswith(self.series_title or ""))
         return bool(self.overview) or bool(self.artwork.poster)
+
+    def is_complete(self) -> bool:
+        """Whether stored metadata is good enough to skip a rebuild.
+
+        Music and photos are local-only (no external enrichment), so a stored
+        record is complete. Movies/episodes need a successful TMDB match.
+        """
+        if self.kind in ("audio", "photo", "album", "artist"):
+            return True
+        return self.has_tmdb()

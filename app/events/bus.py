@@ -55,7 +55,7 @@ class EventBus:
                     except RuntimeError:
                         result.close()
         except Exception:
-            logger.exception("Event handler failed for %s", event.name)
+            logger.exception("Event handler failed for {}", event.name)
 
 
 event_bus = EventBus()

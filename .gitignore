@@ -4,11 +4,10 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .env
-cache/
-logs/
-media/
+/cache/
+/logs/
+/media/
 config/settings.json
 config/libraries.json
 web/node_modules/
 web/dist/
-quark.egg info

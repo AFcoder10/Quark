@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useApp } from "../context";
-import { FilmIcon, GearIcon, HomeIcon, TvIcon } from "../icons";
+import { FilmIcon, GearIcon, HomeIcon, MusicIcon, PhotoIcon, TvIcon } from "../icons";
 
 export function Sidebar() {
   const { health } = useApp();
@@ -24,6 +24,12 @@ export function Sidebar() {
       </NavLink>
       <NavLink to="/shows" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
         <TvIcon /> TV Shows
+      </NavLink>
+      <NavLink to="/music" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+        <MusicIcon /> Music
+      </NavLink>
+      <NavLink to="/photos" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+        <PhotoIcon /> Photos
       </NavLink>
 
       <div className="nav-group-label">System</div>

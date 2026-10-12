@@ -57,6 +57,22 @@ def get_artwork(
     return playback.artwork(media_id, name)
 
 
+@router.get("/{media_id}/thumbnail")
+def get_thumbnail(
+    media_id: str,
+    playback: PlaybackService = Depends(get_playback_service),
+) -> Response:
+    return playback.thumbnail(media_id)
+
+
+@router.get("/{media_id}/file")
+def get_file(
+    media_id: str,
+    playback: PlaybackService = Depends(get_playback_service),
+) -> Response:
+    return playback.file_response(media_id)
+
+
 @router.get("/{media_id}/subtitles")
 def list_subtitles(
     media_id: str,

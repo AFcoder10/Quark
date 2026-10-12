@@ -1,23 +1,31 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { useApp } from "../context";
 import type { Show } from "../types";
 import { TvIcon, StarIcon } from "../icons";
+import { SetupPrompt } from "../components/SetupPrompt";
 
 export default function ShowsPage() {
   const navigate = useNavigate();
+  const { libraries, refreshAll } = useApp();
   const [shows, setShows] = useState<Show[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = () =>
     api
       .shows()
       .then(setShows)
-      .catch(() => setShows([]))
-      .finally(() => setLoading(false));
+      .catch(() => setShows([]));
+
+  useEffect(() => {
+    load().finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <div className="spinner" />;
+
+  const hasLibrary = libraries.some((l) => l.type === "show" || l.type === "mixed");
 
   return (
     <div>
@@ -25,12 +33,25 @@ export default function ShowsPage() {
       <div className="content-subtitle">{shows.length} shows in your library</div>
 
       {shows.length === 0 ? (
-        <div className="empty-state">
-          <TvIcon />
-          <p>
-            No shows found. Use the structure <b>tvshows/ShowName/S01/ep1.mp4</b> and scan.
-          </p>
-        </div>
+        hasLibrary ? (
+          <div className="empty-state">
+            <TvIcon />
+            <p>
+              No shows found. Use the structure <b>ShowName/S01/ep1.mp4</b> and scan.
+            </p>
+          </div>
+        ) : (
+          <SetupPrompt
+            icon={<TvIcon />}
+            title="Add your TV shows folder"
+            description="Pick the folder where your shows live. Use ShowName/Season folders inside it."
+            type="show"
+            onCreated={() => {
+              refreshAll();
+              load();
+            }}
+          />
+        )
       ) : (
         <div className="show-grid">
           {shows.map((show) => {

@@ -33,7 +33,7 @@ class LibraryService:
         items = self.index.all()
         if library_id:
             items = [item for item in items if item.library_id == library_id]
-        if kind in ("movie", "episode"):
+        if kind:
             items = [item for item in items if item.kind == kind]
         if search:
             query = search.lower()
@@ -42,8 +42,63 @@ class LibraryService:
                 for item in items
                 if query in item.title.lower()
                 or (item.series_title and query in item.series_title.lower())
+                or (item.artist and query in item.artist.lower())
+                or (item.album and query in item.album.lower())
                 or query in item.primary_file.lower()
             ]
+        return items
+
+    def artists(self) -> list[dict]:
+        """Group tracks into artists (for the Music UI)."""
+        tracks = [item for item in self.index.all() if item.kind == "audio"]
+        grouped: dict[str, list] = {}
+        for track in tracks:
+            key = track.album_artist or track.artist or "Unknown Artist"
+            grouped.setdefault(key, []).append(track)
+        return [
+            {"artist": name, "track_count": len(items), "album_count": len({t.album for t in items})}
+            for name, items in sorted(grouped.items(), key=lambda kv: kv[0].lower())
+        ]
+
+    def albums(self, artist: str | None = None) -> list[dict]:
+        """Group tracks into albums (optionally filtered by artist)."""
+        tracks = [item for item in self.index.all() if item.kind == "audio"]
+        if artist:
+            tracks = [t for t in tracks if (t.album_artist or t.artist) == artist]
+        grouped: dict[str, list] = {}
+        for track in tracks:
+            key = f"{track.album_artist or track.artist or 'Unknown Artist'}|{track.album or 'Unknown Album'}"
+            grouped.setdefault(key, []).append(track)
+        result = []
+        for key, items in grouped.items():
+            album_artist, _, album = key.partition("|")
+            items = sorted(items, key=lambda t: (t.disc_number or 0, t.track_number or 0))
+            result.append(
+                {
+                    "artist": album_artist,
+                    "album": album,
+                    "track_count": len(items),
+                    "year": next((t.year for t in items if t.year), None),
+                    "cover_media_id": items[0].media_id if items else None,
+                }
+            )
+        result.sort(key=lambda a: (a["artist"].lower(), a["album"].lower()))
+        return result
+
+    def album_tracks(self, artist: str, album: str) -> list:
+        tracks = [
+            item
+            for item in self.index.all()
+            if item.kind == "audio"
+            and (item.album_artist or item.artist or "Unknown Artist") == artist
+            and (item.album or "Unknown Album") == album
+        ]
+        return sorted(tracks, key=lambda t: (t.disc_number or 0, t.track_number or 0))
+
+    def photos(self, library_id: str | None = None) -> list:
+        items = [item for item in self.index.all() if item.kind == "photo"]
+        if library_id:
+            items = [item for item in items if item.library_id == library_id]
         return items
 
     def item(self, media_id: str):
@@ -73,7 +128,7 @@ class LibraryService:
         try:
             await self.builder.build(item, download_subtitles=True)
         except Exception as exc:
-            logger.exception("Metadata refresh failed for %s", media_id)
+            logger.exception("Metadata refresh failed for {}", media_id)
             from app.events.bus import event_bus
 
             event_bus.publish("metadata.failed", media_id=media_id, error=str(exc))
@@ -102,5 +157,5 @@ class LibraryService:
                 self.builder.save(meta)
             event_bus.publish("subtitles.downloaded", media_id=media_id, count=len(new_tracks))
         except Exception as exc:
-            logger.exception("Subtitle download failed for %s", media_id)
+            logger.exception("Subtitle download failed for {}", media_id)
             event_bus.publish("subtitles.failed", media_id=media_id, error=str(exc))

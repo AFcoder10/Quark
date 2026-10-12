@@ -19,7 +19,7 @@ async def optimization_worker(queue: OptimizationQueue) -> None:
         job = queue.get_job(media_id)
         mode = job.mode if job else "hls"
         queue.start(media_id)
-        logger.info("Optimizing %s (mode=%s)", media_id, mode)
+        logger.info("Optimizing {} (mode={})", media_id, mode)
         try:
             meta = metadata_builder.load(media_id)
             if meta is None:
@@ -44,5 +44,5 @@ async def optimization_worker(queue: OptimizationQueue) -> None:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.exception("Optimization failed for %s", media_id)
+            logger.exception("Optimization failed for {}", media_id)
             queue.fail(media_id, str(exc))

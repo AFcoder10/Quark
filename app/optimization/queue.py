@@ -4,9 +4,8 @@ import asyncio
 from dataclasses import asdict, dataclass, field
 from typing import Literal
 
-from app.cache.manager import cache
+from app.db.repositories import jobs as _jobs_repo
 from app.events.bus import event_bus
-from app.utils.json_utils import read_json, write_json
 from app.utils.time_utils import utcnow_iso
 
 
@@ -32,31 +31,30 @@ class OptimizationQueue:
         self._load()
 
     def _save(self) -> None:
-        data = {media_id: job.to_dict() for media_id, job in self._jobs.items()}
-        write_json(cache.queue_file, data)
+        for job in self._jobs.values():
+            _jobs_repo.upsert(job.to_dict())
 
     def _load(self) -> None:
-        raw = read_json(cache.queue_file)
-        if not isinstance(raw, dict):
-            return
-        for media_id, data in raw.items():
-            if isinstance(data, dict):
-                job = JobState(
-                    media_id=data.get("media_id", media_id),
-                    mode=data.get("mode", "hls"),
-                    status=data.get("status", "queued"),
-                    progress=float(data.get("progress", 0.0)),
-                    message=str(data.get("message", "")),
-                    error=data.get("error"),
-                    created_at=data.get("created_at", utcnow_iso()),
-                    finished_at=data.get("finished_at"),
-                )
-                if job.status in ("queued", "running"):
-                    job.status = "queued"
-                    self._jobs[media_id] = job
-                    self._queue.put_nowait(media_id)
-                else:
-                    self._jobs[media_id] = job
+        for data in _jobs_repo.all():
+            media_id = data.get("media_id")
+            if not media_id:
+                continue
+            job = JobState(
+                media_id=media_id,
+                mode=data.get("mode", "hls"),
+                status=data.get("status", "queued"),
+                progress=float(data.get("progress", 0.0)),
+                message=str(data.get("message", "")),
+                error=data.get("error"),
+                created_at=data.get("created_at") or utcnow_iso(),
+                finished_at=data.get("finished_at"),
+            )
+            if job.status in ("queued", "running"):
+                job.status = "queued"
+                self._jobs[media_id] = job
+                self._queue.put_nowait(media_id)
+            else:
+                self._jobs[media_id] = job
 
     def enqueue(self, media_id: str, mode: Literal["hls", "hevc"] = "hls") -> bool:
         current = self._jobs.get(media_id)
