@@ -34,6 +34,9 @@ class LibraryIndex:
     def by_library(self, library_id: str) -> list[MediaItem]:
         return [item for item in self._items.values() if item.library_id == library_id]
 
+    def by_series(self, series_title: str) -> list[MediaItem]:
+        return [item for item in self._items.values() if item.kind == "episode" and (item.series_title or item.title) == series_title]
+
     def remove(self, media_id: str) -> bool:
         return self._items.pop(media_id, None) is not None
 

@@ -1,3 +1,14 @@
+export interface ItemQuery {
+  library_id?: string | null;
+  kind?: "movie" | "episode" | null;
+  search?: string | null;
+  genres?: string[];
+  unwatched?: boolean | null;
+  sort?: "title" | "year" | "rating" | "recently_added" | "recently_watched" | null;
+  limit?: number | null;
+  offset?: number;
+}
+
 export interface Library {
   id: string;
   name: string;

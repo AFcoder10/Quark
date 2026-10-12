@@ -13,7 +13,7 @@ if sys.platform == "win32":
 
 BASE_DIR = Path(__file__).parent.resolve()
 WEB_DIR = BASE_DIR / "web"
-PORT = 8090
+PORT = 16967
 RESTART_MARKER = BASE_DIR / ".restart_request"
 
 IS_WINDOWS = sys.platform.startswith("win")
@@ -116,16 +116,24 @@ def _spawn_kwargs():
 def run_backend():
     import asyncio
     from app.config.settings import settings
+    from app.system.network import local_ipv4_addresses
     import uvicorn
 
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
     settings.load()
+    port = settings.data.server.port
+    addresses = local_ipv4_addresses()
+    print("\n┌─────────────────────────────────────────────────────────┐")
+    print("│              Quark Server — connect from phone          │")
+    for addr in addresses:
+        print(f"│  http://{addr}:{port}")
+    print("└─────────────────────────────────────────────────────────┘\n")
     uvicorn.run(
         "app.main:app",
         host=settings.data.server.host,
-        port=settings.data.server.port,
+        port=port,
         log_level=settings.data.server.log_level.lower(),
     )
 

@@ -39,8 +39,6 @@ class HEVCBuilder:
         cmd = [
             require_binary(FFMPEG),
             "-hide_banner",
-            "-loglevel",
-            "error",
             "-y",
             "-i",
             str(primary),
@@ -68,8 +66,8 @@ class HEVCBuilder:
                 pct = min(1.0, max(0.0, parsed_time / duration))
                 self._progress(pct, f"Encoding HEVC ({int(pct * 100)}%)")
 
-        runner = FFmpegRunner(on_progress=on_time)
-        await runner.run(cmd)
+        runner = FFmpegRunner(cmd, log_tag=f"hevc-{media_id}", on_progress=on_time)
+        await runner.run()
 
         meta.optimization.status = "done"
         meta.optimization.enabled = True

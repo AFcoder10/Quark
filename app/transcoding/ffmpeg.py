@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import subprocess
 import threading
 from collections import deque
 from pathlib import Path
+from typing import Callable
 
 from loguru import logger
 
@@ -14,10 +16,18 @@ class FFmpegProcessError(Exception):
 
 
 class FFmpegRunner:
-    def __init__(self, args: list[str], *, cwd: Path | None = None, log_tag: str = "ffmpeg") -> None:
+    def __init__(
+        self,
+        args: list[str],
+        *,
+        cwd: Path | None = None,
+        log_tag: str = "ffmpeg",
+        on_progress: Callable[[float], None] | None = None,
+    ) -> None:
         self.args = args
         self.cwd = cwd
         self.log_tag = log_tag
+        self._on_progress = on_progress
         self.process: subprocess.Popen | None = None
         self._stderr_thread: threading.Thread | None = None
         self._error_tail: str | None = None
@@ -44,10 +54,28 @@ class FFmpegRunner:
                 text = raw_line.decode(errors="replace").rstrip()
                 if text:
                     tail.append(text)
+                    if self._on_progress is not None:
+                        self._parse_progress(text)
         except Exception:
             pass
         if tail:
             self._error_tail = " | ".join(tail)
+
+    _TIME_RE = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
+
+    def _parse_progress(self, text: str) -> None:
+        match = self._TIME_RE.search(text)
+        if not match:
+            return
+        hours, minutes, seconds = match.groups()
+        try:
+            elapsed = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+        except ValueError:
+            return
+        try:
+            self._on_progress(elapsed)
+        except Exception:
+            pass
 
     async def wait(self) -> int:
         if self.process is None:

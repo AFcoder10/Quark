@@ -1,6 +1,7 @@
 import type {
   Health,
   Item,
+  ItemQuery,
   Library,
   Metadata,
   OptimizationStatus,
@@ -51,6 +52,8 @@ export const api = {
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return request<Item[]>(`/items${suffix}`);
   },
+  queryItems: (body: ItemQuery) => request<{ items: Item[]; total: number }>("/items", { method: "QUERY", body: JSON.stringify(body) }),
+  genres: () => request<string[]>("/items/genres"),
   item: (id: string) => request<Item>(`/items/${id}`),
   itemMetadata: (id: string) => request<Metadata>(`/items/${id}/metadata`),
   refreshItem: (id: string) => request<{ status: string }>(`/items/${id}/refresh`, { method: "POST" }),

@@ -20,8 +20,8 @@ DIRECT_PLAY_CONTAINERS = ["mp4", "mkv", "mov", "m4v", "webm", "ts", "m2ts", "avi
 class ServerSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    host: str = "127.0.0.1"
-    port: int = 8090
+    host: str = "0.0.0.0"
+    port: int = 16967
     log_level: str = "INFO"
     scan_on_startup: bool = False
 

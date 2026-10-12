@@ -166,14 +166,24 @@ class LiveTranscodeManager:
         job.mark_started()
         self._jobs[media_id] = job
 
-        # Wait until initial HLS manifest file is written to disk
+        # Wait until the playlist actually references a finished segment so the
+        # player never receives an empty m3u8 (ffmpeg writes the m3u8 header
+        # before the first segment finishes).
         m3u8_file = out_dir / "index.m3u8"
-        for _ in range(240):
-            if m3u8_file.is_file() and m3u8_file.stat().st_size > 0:
-                break
+        for _ in range(300):  # up to 30 s
+            if m3u8_file.is_file():
+                try:
+                    content = m3u8_file.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    content = ""
+                if "#EXTINF" in content:
+                    break
             if runner.process is not None and runner.process.poll() is not None:
-                raise RuntimeError(f"FFmpeg live transcode exited early: {runner.process.returncode}")
-            await asyncio.sleep(0.05)
+                raise RuntimeError(
+                    f"FFmpeg live transcode exited early: "
+                    f"{runner.process.returncode}"
+                )
+            await asyncio.sleep(0.1)
 
     async def stop_job(self, media_id: str) -> None:
         job = self._jobs.pop(media_id, None)

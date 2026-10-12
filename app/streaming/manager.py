@@ -37,10 +37,15 @@ class PlaybackManager:
             start_param = request.query_params.get("start")
             start_time = float(start_param) if start_param else 0.0
 
+            client = request.query_params.get("client")
+            direct_ok = meta.playback.direct_play_supported
+            if not direct_ok and client == "android":
+                direct_ok = self.builder.direct_play_supported(meta, "android")[0]
+
             if mode == "auto":
                 if self._optimized(meta):
                     mode = "hls"
-                elif meta.playback.direct_play_supported:
+                elif direct_ok:
                     mode = "direct"
                 else:
                     mode = "transcode"
@@ -50,7 +55,7 @@ class PlaybackManager:
                 else:
                     return RedirectResponse(f"/api/items/{media_id}/hls/master.m3u8", status_code=302)
             if mode == "direct":
-                if not meta.playback.direct_play_supported:
+                if not direct_ok:
                     mode = "transcode"
                 else:
                     primary = Path(meta.primary_file)

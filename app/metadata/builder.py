@@ -42,7 +42,7 @@ class MetadataBuilder:
         await self._apply_artwork(meta)
         await self._apply_external_subtitles(meta, download_subtitles)
 
-        supported, reason = self._direct_play_supported(meta)
+        supported, reason = self.direct_play_supported(meta)
         meta.playback.direct_play_supported = supported
         meta.playback.reason = reason
         meta.playback.mode = "direct" if supported else "transcode"
@@ -273,12 +273,17 @@ class MetadataBuilder:
     DIRECT_PLAY_AUDIO_CODECS = {"aac", "mp3", "opus", "vorbis", "flac", "ac3", "eac3"}
     DIRECT_PLAY_SURROUND_CODECS = {"aac", "mp3", "ac3", "eac3", "opus"}
 
-    def _direct_play_supported(self, meta: Metadata) -> tuple[bool, str]:
+    def direct_play_supported(self, meta: Metadata, client: str | None = None) -> tuple[bool, str]:
         video = meta.video
         if video is None or not video.codec:
             return False, "no video stream"
-        if video.codec.lower() not in settings.data.streaming.direct_play_codecs:
-            return False, f"codec {video.codec} not supported for direct play"
+        codec = video.codec.lower()
+        if client == "android":
+            codecs = set(settings.data.streaming.direct_play_codecs) | {"av1", "vp8", "h265", "h.265"}
+        else:
+            codecs = set(settings.data.streaming.direct_play_codecs)
+        if codec not in codecs:
+            return False, f"codec {codec} not supported for direct play"
         ext = Path(meta.primary_file).suffix.lower().lstrip(".")
         if ext not in settings.data.streaming.direct_play_containers:
             return False, f"container {ext} not supported for direct play"

@@ -20,7 +20,7 @@ class SubtitleManager:
         entries = await provider.search(
             tmdb_id=meta.tmdb_id,
             imdb_id=meta.imdb_id,
-            kind=meta.kind,
+            kind="tv" if meta.kind == "episode" else "movie",
             season=meta.season,
             episode=meta.episode,
             languages=config.languages,

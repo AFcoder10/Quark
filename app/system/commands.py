@@ -54,16 +54,15 @@ def require_binary(name: str) -> str:
 async def run_async(
     args: list[str], *, timeout: float | None = None, cwd: Path | None = None
 ) -> subprocess.CompletedProcess:
-    proc = await asyncio.create_subprocess_exec(
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=str(cwd) if cwd else None,
-    )
+    def _run() -> subprocess.CompletedProcess:
+        return subprocess.run(
+            args,
+            capture_output=True,
+            timeout=timeout,
+            cwd=str(cwd) if cwd else None,
+        )
+
     try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
-        proc.kill()
-        await proc.communicate()
-        raise TimeoutError(f"Command timed out: {args[0]}")
-    return subprocess.CompletedProcess(args, proc.returncode or 0, stdout, stderr)
+        return await asyncio.to_thread(_run)
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(f"Command timed out: {args[0]}") from exc

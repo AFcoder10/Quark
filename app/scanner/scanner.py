@@ -7,6 +7,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from app.cache.manager import cache
 from app.config.libraries import Library
 from app.events.bus import event_bus
 from app.media.detection import build_movie_items, build_tvshow_items, is_media_file
@@ -55,6 +56,7 @@ class LibraryScanner:
         removed = len(stale_ids)
         for media_id in stale_ids:
             self.index.remove(media_id)
+            cache.clear_media(media_id)
 
         self.index.save()
 

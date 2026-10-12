@@ -71,6 +71,13 @@ def create_app() -> FastAPI:
 
         logger.info("Quark backend started (host={}, port={})", settings.data.server.host, settings.data.server.port)
 
+        from app.system.network import local_ipv4_addresses
+        port = settings.data.server.port
+        addresses = local_ipv4_addresses()
+        logger.info("📱 Connect from phone:")
+        for addr in addresses:
+            logger.info("   http://{}:{:d}", addr, port)
+
         try:
             yield
         finally:

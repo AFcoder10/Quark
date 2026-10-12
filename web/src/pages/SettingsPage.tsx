@@ -16,6 +16,8 @@ export default function SettingsPage() {
   const [scanning, setScanning] = useState<string | null>(null);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [addresses, setAddresses] = useState<{ ip: string; url: string }[]>([]);
+  const [hostname, setHostname] = useState("");
 
   const loadSettings = async () => {
     try {
@@ -27,6 +29,13 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSettings();
+    fetch("/api/system/addresses")
+      .then((res) => res.json())
+      .then((data: { hostname: string; addresses: { ip: string; url: string }[] }) => {
+        setAddresses(data.addresses ?? []);
+        setHostname(data.hostname ?? "");
+      })
+      .catch(() => {});
   }, []);
 
   const save = async () => {
@@ -212,6 +221,19 @@ export default function SettingsPage() {
               <p className="panel-desc">
                 Changing host/port requires a server restart.
               </p>
+
+              {addresses.length > 0 && (
+                <div className="panel-address-box" style={{ marginBottom: 18, padding: "14px 16px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg)", fontFamily: "monospace", fontSize: 13, lineHeight: "1.8" }}>
+                  <div style={{ fontWeight: 600, color: "var(--accent)", marginBottom: 6 }}>📱 Connect from your phone</div>
+                  <div style={{ color: "var(--text-dim)", fontSize: 12, marginBottom: 8 }}>Enter one of these into the Quark app on your phone:</div>
+                  {addresses.map((a) => (
+                    <div key={a.ip}>
+                      <span style={{ color: "var(--text)">{a.url}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex gap-md mt-20">
                 <button className="btn btn-primary" onClick={() => setShowRestartConfirm(true)}>
                   <RestartIcon /> Restart Server

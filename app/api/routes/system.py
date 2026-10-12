@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
@@ -9,10 +10,21 @@ from app.config.libraries import libraries
 from app.config.settings import settings
 from app.scanner.index import LibraryIndex
 from app.system import commands
+from app.system.network import host_addresses
 from app.system.platform import platform_name
 from app.api.deps import get_index
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+@router.get("/addresses")
+def get_addresses() -> dict:
+    """Local + network addresses a phone on the same Wi-Fi can use to connect."""
+    return {
+        "hostname": socket.gethostname(),
+        "port": settings.data.server.port,
+        "addresses": host_addresses(settings.data.server.port),
+    }
 
 
 @router.get("/health")

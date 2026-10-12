@@ -22,23 +22,18 @@ def hls_media_type(name: str) -> str:
     return mimetypes.guess_type(name)[0] or "application/octet-stream"
 
 
-def _video_codecs(meta: Metadata) -> str:
-    codec = (meta.video.codec or "h264").lower() if meta.video else "h264"
-    if codec == "h264":
-        return "avc1.640029"
-    if codec == "hevc":
-        return "hev1.1.6.L120.B0"
-    return "avc1.640029"
-
-
-def _audio_codecs(meta: Metadata) -> str:
-    if meta.audio and meta.audio[0].codec:
-        codec = meta.audio[0].codec.lower()
-        if codec == "aac":
-            return "mp4a.40.2"
+def _rendition_codecs(audio_playlists: list[AudioPlaylistInfo]) -> str:
+    # Optimization renditions are always encoded with libx264.
+    codecs = ["avc1.640029"]
+    audio_codes: set[str] = set()
+    for track in audio_playlists:
+        codec = (track.codec or "aac").lower()
         if codec in ("ac3", "eac3", "ec-3"):
-            return "ec-3"
-    return "mp4a.40.2"
+            audio_codes.add("ec-3")
+        elif codec == "aac":
+            audio_codes.add("mp4a.40.2")
+    codecs.extend(sorted(audio_codes))
+    return ",".join(codecs)
 
 
 def build_master_playlist(
@@ -67,9 +62,7 @@ def build_master_playlist(
                 f'LANGUAGE="{track.language}",FORCED={forced},DEFAULT=NO,URI="{track.playlist}"'
             )
 
-    codecs = _video_codecs(meta)
-    if has_audio:
-        codecs = f"{codecs},{_audio_codecs(meta)}"
+    codecs = _rendition_codecs(audio_playlists)
 
     for rendition in sorted(renditions, key=lambda item: item.height):
         attrs = [

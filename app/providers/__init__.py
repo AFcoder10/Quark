@@ -12,19 +12,21 @@ _opensubtitles: OpenSubtitlesProvider | None = None
 
 def get_tmdb() -> TMDBProvider:
     global _tmdb
-    if _tmdb is None:
-        from app.config.settings import settings
+    from app.config.settings import settings
 
-        _tmdb = TMDBProvider(api_key=settings.data.providers.tmdb.api_key)
+    api_key = settings.data.providers.tmdb.api_key
+    if _tmdb is None or _tmdb.api_key != api_key:
+        _tmdb = TMDBProvider(api_key=api_key)
     return _tmdb
 
 
 def get_fanart() -> FanArtProvider:
     global _fanart
-    if _fanart is None:
-        from app.config.settings import settings
+    from app.config.settings import settings
 
-        _fanart = FanArtProvider(api_key=settings.data.providers.fanart.api_key)
+    api_key = settings.data.providers.fanart.api_key
+    if _fanart is None or _fanart.api_key != api_key:
+        _fanart = FanArtProvider(api_key=api_key)
     return _fanart
 
 
